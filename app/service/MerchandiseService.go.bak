@@ -1,0 +1,31 @@
+package service
+
+import (
+	"fmt"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/jmoiron/sqlx"
+)
+
+type MerchandiseHandler struct{}
+
+var Db *sqlx.DB
+
+func init() {
+	database, err := sqlx.Open("mysql", "root:123456@tcp(172.16.113.119:3306)/service_passport")
+	if err != nil {
+		fmt.Println("open mysql failed", err)
+		database.Close()
+		return
+	}
+	Db = database
+}
+
+type MerchandiseService struct{}
+
+func (M *MerchandiseService) Create(params map[string]interface{}) (id int64, err error) {
+	r, err := Db.Exec("insert into user(name, sex, email)values(?, ?, ?)", params["name"], params["sex"], params["email"])
+	if err != nil {
+		return 0, err
+	}
+	return r.LastInsertId()
+}
