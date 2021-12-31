@@ -3,20 +3,22 @@ package database
 import (
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+
 	"xorm.io/xorm"
+
+	"passport/util"
 )
 
 var MasterDB *xorm.Engine
 
-var dns string
+var dataSourceName string
 
 func init() {
-	dns = fmt.Sprintf("%s:%s@tcp(%s:%s)/?charset=%s&parseTime=True&loc=Local",
-		"root",
-		"123456",
-		"172.16.113.119",
-		"3306",
-		"utf8")
+
+	mysqlConfig, _ := util.ConfigFile.GetSection("mysql")
+
+	fillDataSourceName(mysqlConfig)
+
 	if err := initEngine(); err != nil {
 		panic(err)
 	}
@@ -27,17 +29,26 @@ func init() {
 	}
 }
 
+func fillDataSourceName(mysqlConfig map[string]string) {
+	dataSourceName = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=%s&parseTime=True&loc=Local",
+		mysqlConfig["user"],
+		mysqlConfig["password"],
+		mysqlConfig["host"],
+		mysqlConfig["port"],
+		mysqlConfig["dbname"],
+		mysqlConfig["charset"])
+}
 
 func initEngine() error {
 	var err error
 
-	MasterDB, err = xorm.NewEngine("mysql", dns)
+	MasterDB, err = xorm.NewEngine("mysql", dataSourceName)
 	if err != nil {
 		return err
 	}
 
-	maxIdle := 2
-	maxConn := 10
+	maxIdle := util.ConfigFile.MustInt("mysql", "max_idle", 2)
+	maxConn := util.ConfigFile.MustInt("mysql", "max_conn", 10)
 
 	MasterDB.SetMaxIdleConns(maxIdle)
 	MasterDB.SetMaxOpenConns(maxConn)
