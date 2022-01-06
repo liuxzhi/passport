@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"passport/app/request"
 	"passport/app/service"
+	"passport/util"
 	"strconv"
 	"strings"
 )
@@ -44,11 +45,11 @@ func (m *MerchandiseHandler) Get(c *gin.Context) {
 		for _, attribute := range attributeList {
 			if merchandiseAttribute.AttributeId == attribute.Id {
 				var merchandiseAttributeMap = make(map[string]interface{})
-				merchandiseAttributeMap["Id"] = merchandiseAttribute.Id
-				merchandiseAttributeMap["MerchandiseId"] = merchandiseAttribute.MerchandiseId
-				merchandiseAttributeMap["AttributeId"] = merchandiseAttribute.AttributeId
-				merchandiseAttributeMap["IsPrime"] = merchandiseAttribute.IsPrime
-				merchandiseAttributeMap["Name"] = attribute.Name
+				merchandiseAttributeMap["id"] = merchandiseAttribute.Id
+				merchandiseAttributeMap["merchandise_id"] = merchandiseAttribute.MerchandiseId
+				merchandiseAttributeMap["attribute_id"] = merchandiseAttribute.AttributeId
+				merchandiseAttributeMap["is_prime"] = merchandiseAttribute.IsPrime
+				merchandiseAttributeMap["name"] = attribute.Name
 				merchandiseAttributeMapList = append(merchandiseAttributeMapList, merchandiseAttributeMap)
 			}
 		}
@@ -74,11 +75,11 @@ func (m *MerchandiseHandler) Get(c *gin.Context) {
 		for _, attributeValue := range attributeValueList {
 			if merchandiseAttributeValue.AttributeValueId == attributeValue.Id {
 				var merchandiseAttributeValueMap = make(map[string]interface{}, 0)
-				merchandiseAttributeValueMap["Id"] = merchandiseAttributeValue.Id
-				merchandiseAttributeValueMap["AttributeId"] = merchandiseAttributeValue.AttributeId
-				merchandiseAttributeValueMap["AttributeValueId"] = merchandiseAttributeValue.AttributeValueId
-				merchandiseAttributeValueMap["MerchandiseId"] = merchandiseAttributeValue.MerchandiseId
-				merchandiseAttributeValueMap["Value"] = attributeValue.Value
+				merchandiseAttributeValueMap["id"] = merchandiseAttributeValue.Id
+				merchandiseAttributeValueMap["attribute_id"] = merchandiseAttributeValue.AttributeId
+				merchandiseAttributeValueMap["attribute_value_id"] = merchandiseAttributeValue.AttributeValueId
+				merchandiseAttributeValueMap["merchandise_id"] = merchandiseAttributeValue.MerchandiseId
+				merchandiseAttributeValueMap["value"] = attributeValue.Value
 				merchandiseAttributeValueMapList = append(merchandiseAttributeValueMapList, merchandiseAttributeValueMap)
 			}
 		}
@@ -86,23 +87,54 @@ func (m *MerchandiseHandler) Get(c *gin.Context) {
 
 	for index, merchandiseAttributeMapItem := range merchandiseAttributeMapList {
 		var temp = make([]interface{}, 0)
-		for _, merchandiseAttributeValueMapItems := range merchandiseAttributeValueMapList {
-			if merchandiseAttributeMapItem["AttributeId"] == merchandiseAttributeValueMapItems["AttributeId"] {
-				temp = append(temp, merchandiseAttributeValueMapItems["AttributeValueId"])
+		for _, merchandiseAttributeValueMapItem := range merchandiseAttributeValueMapList {
+			if merchandiseAttributeMapItem["attribute_id"] == merchandiseAttributeValueMapItem["attribute_id"] {
+				temp = append(temp, merchandiseAttributeValueMapItem["attribute_value_id"])
 			}
 		}
-		merchandiseAttributeMapList[index]["Value_ids"] = temp
+		merchandiseAttributeMapList[index]["value_ids"] = temp
 	}
 
-	fmt.Println("merchandiseAttributeMapList", merchandiseAttributeMapList)
+	merchandiseAttributeValueAssociatedList := make([]map[string]interface{}, 0)
+	for _, merchandiseAttributeValueMap := range merchandiseAttributeValueMapList {
+
+		var merchandiseAttributeValueAssociatedData = make(map[string]interface{})
+		var name = ""
+
+		for _, merchandiseAttributeMapItem := range merchandiseAttributeMapList {
+			if merchandiseAttributeValueMap["attribute_id"] == merchandiseAttributeMapItem["attribute_id"] {
+				value, ok := merchandiseAttributeMapItem["name"].(string)
+				if ok {
+					name = value
+				}
+			}
+		}
+		merchandiseAttributeValueAssociatedData["name"] = name
+
+		temp := make([]interface{}, 0)
+		for _, value := range merchandiseAttributeValueMap {
+			for _, attributeValue := range attributeValueList {
+				if attributeValue.Id == value {
+					temp = append(temp, attributeValue)
+				}
+			}
+		}
+		merchandiseAttributeValueAssociatedData["values"] = temp
+		merchandiseAttributeValueAssociatedList = append(merchandiseAttributeValueAssociatedList, merchandiseAttributeValueAssociatedData)
+	}
+	fmt.Println("merchandiseAttributeValueAssociatedList", merchandiseAttributeValueAssociatedList)
+	merchandiseInfo := util.Struct2Map(*merchandise)
+	merchandiseInfo["item_id"] = "0"
+	if reqInfo.ItemId != "" {
+		merchandiseInfo["item_id"] = reqInfo.ItemId
+	}
+
+	merchandiseInfo["attribute_list"] = merchandiseAttributeMapList
+	merchandiseInfo["attribute_value_list"] = merchandiseAttributeValueList
+	merchandiseInfo["attribute_value_associated_list"] = merchandiseAttributeValueAssociatedList
+	merchandiseInfo["item_list"] = merchandiseItems
 
 	c.JSON(200, gin.H{
-		"merchandise":                      merchandise,
-		"merchandise_items":                merchandiseItems,
-		"merchandise_attribute_list":       merchandiseAttributeList,
-		"attribute_list":                   attributeList,
-		"merchandise_attribute_map_list":   merchandiseAttributeMapList,
-		"merchandise_attribute_value_list": merchandiseAttributeValueList,
-		"attribute_value_list":             attributeValueList,
+		"merchandise": merchandiseInfo,
 	})
 }
